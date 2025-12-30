@@ -2149,13 +2149,13 @@
         </div>
     </div>
 
-    <script>
+<script>
 // Упрощенная инициализация Firebase
 async function initializeFirebase() {
     try {
-        // Импортируем Firebase через динамический импорт
+        // Импортируем ВСЕ нужные функции Firebase
         const { initializeApp } = await import("https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js");
-        const { getDatabase, ref, set, onValue, get, child } = await import("https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js");
+        const { getDatabase, ref, set, onValue, get } = await import("https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js");
 
         const firebaseConfig = {
             apiKey: "AIzaSyC5tqWtPgQAmr7H-9HIZpm_NbUlQLDK8rs",
@@ -2171,6 +2171,12 @@ async function initializeFirebase() {
         window.firebaseApp = initializeApp(firebaseConfig);
         window.firebaseDatabase = getDatabase(window.firebaseApp);
         window.databaseRef = ref(window.firebaseDatabase, 'worldBank');
+        
+        // Экспортируем функции Firebase для основного кода
+        window.firebaseGet = get;
+        window.firebaseSet = set;
+        window.firebaseOnValue = onValue;
+        window.firebaseRef = ref;
         
         console.log("✅ Firebase успешно инициализирован!");
         return true;
@@ -2231,7 +2237,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 </script>
-
+    
 // Функция обновления статуса синхронизации
 function updateSyncStatus(status) {
     const syncStatus = document.getElementById('syncStatus');
@@ -2408,52 +2414,52 @@ window.updateSyncStatus = updateSyncStatus;
         };
 
         // ==================== СИНХРОНИЗАЦИЯ ДАННЫХ ====================
-        async function startSync() {
-            if (!syncEnabled || !window.databaseRef) return;
+async function startSync() {
+    if (!syncEnabled || !window.databaseRef) return;
+    
+    try {
+        // Загружаем данные с сервера при первом запуске
+        const snapshot = await window.firebaseGet(window.databaseRef);
+        
+        if (snapshot.exists()) {
+            const data = snapshot.val();
             
-            try {
-                // Загружаем данные с сервера при первом запуске
-                const snapshot = await get(window.databaseRef);
-                
-                if (snapshot.exists()) {
-                    const data = snapshot.val();
-                    
-                    // Обновляем локальные данные из сервера
-                    if (data.balances) balances = { ...data.balances };
-                    if (data.pins) pins = data.pins;
-                    if (data.transactions) transactions = data.transactions;
-                    if (data.exchangeRates) exchangeRates = { ...data.exchangeRates };
-                    if (data.blockedAccounts) blockedAccounts = data.blockedAccounts;
-                    if (data.fees) fees = data.fees;
-                    if (data.rateHistory) rateHistory = data.rateHistory;
-                    
-                    saveLocalData();
-                    
-                    console.log("Данные загружены с сервера");
-                    
-                    // Обновляем интерфейс
-                    if (currentUser && currentUser !== "BANK") {
-                        updateAccount();
-                        updateTransactionHistory();
-                    }
-                    if (currentUser === "BANK") {
-                        updateBanker();
-                        updateAllTransactions();
-                        updateBankerFees();
-                        updateBlockStatus();
-                    }
-                } else {
-                    // Если на сервере нет данных, сохраняем наши локальные данные
-                    await window.syncAllDataToFirebase();
-                }
-                
-                window.updateSyncStatus('connected');
-                
-            } catch (error) {
-                console.error("Ошибка синхронизации:", error);
-                window.updateSyncStatus('disconnected');
+            // Обновляем локальные данные из сервера
+            if (data.balances) balances = { ...data.balances };
+            if (data.pins) pins = data.pins;
+            if (data.transactions) transactions = data.transactions;
+            if (data.exchangeRates) exchangeRates = { ...data.exchangeRates };
+            if (data.blockedAccounts) blockedAccounts = data.blockedAccounts;
+            if (data.fees) fees = data.fees;
+            if (data.rateHistory) rateHistory = data.rateHistory;
+            
+            saveLocalData();
+            
+            console.log("Данные загружены с сервера");
+            
+            // Обновляем интерфейс
+            if (currentUser && currentUser !== "BANK") {
+                updateAccount();
+                updateTransactionHistory();
             }
+            if (currentUser === "BANK") {
+                updateBanker();
+                updateAllTransactions();
+                updateBankerFees();
+                updateBlockStatus();
+            }
+        } else {
+            // Если на сервере нет данных, сохраняем наши локальные данные
+            await syncAllDataToFirebase();
         }
+        
+        window.updateSyncStatus('connected');
+        
+    } catch (error) {
+        console.error("Ошибка синхронизации:", error);
+        window.updateSyncStatus('disconnected');
+    }
+}
 
         // ==================== ОБНОВЛЕНИЕ ОНЛАЙН СТАТУСА ====================
         function updateOnlineStatus() {
@@ -2463,6 +2469,36 @@ window.updateSyncStatus = updateSyncStatus;
                 window.updateSyncStatus('connected');
                 if (syncEnabled && window.databaseRef) {
                     startSync();
+                    // Синхронизация всех данных в Firebase
+async function syncAllDataToFirebase() {
+    if (!window.databaseRef || !window.firebaseSet) return;
+    
+    try {
+        const dataToSync = {
+            balances: window.balances,
+            pins: window.pins,
+            transactions: window.transactions,
+            exchangeRates: window.exchangeRates,
+            blockedAccounts: window.blockedAccounts,
+            fees: window.fees,
+            rateHistory: window.rateHistory,
+            lastUpdated: Date.now()
+        };
+        
+        await window.firebaseSet(window.databaseRef, dataToSync);
+        window.lastSyncTime = Date.now();
+        
+        console.log("Все данные синхронизированы с Firebase");
+        window.updateSyncStatus('connected');
+        
+    } catch (error) {
+        console.error("Ошибка синхронизации с Firebase:", error);
+        window.updateSyncStatus('disconnected');
+    }
+}
+
+// Экспортируем для глобального использования
+window.syncAllDataToFirebase = syncAllDataToFirebase;
                 }
             } else {
                 window.updateSyncStatus('offline');
@@ -4447,6 +4483,7 @@ window.updateSyncStatus = updateSyncStatus;
 </body>
 
 </html>
+
 
 
 
