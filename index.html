@@ -2149,13 +2149,14 @@
         </div>
     </div>
 
-    <!-- Firebase SDK через модули -->
-    <script type="module">
-        // Импорт Firebase SDK
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, get, child } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+    <script>
+// Упрощенная инициализация Firebase
+async function initializeFirebase() {
+    try {
+        // Импортируем Firebase через динамический импорт
+        const { initializeApp } = await import("https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js");
+        const { getDatabase, ref, set, onValue, get, child } = await import("https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js");
 
-        // Конфигурация Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyC5tqWtPgQAmr7H-9HIZpm_NbUlQLDK8rs",
             authDomain: "national-bank-eu.firebaseapp.com",
@@ -2166,223 +2167,24 @@
             appId: "1:1068398355524:web:71d30f76d6fd07e5da8811"
         };
 
-        // Глобальные переменные для Firebase
-        let firebaseApp = null;
-        let firebaseDatabase = null;
-        let databaseRef = null;
-
-        // Инициализация Firebase
-        async function initializeFirebase() {
-            try {
-                // Инициализация Firebase
-                firebaseApp = initializeApp(firebaseConfig);
-                firebaseDatabase = getDatabase(firebaseApp);
-                databaseRef = ref(firebaseDatabase, 'worldBank');
-                
-                console.log("Firebase успешно инициализирован");
-                updateSyncStatus('connected');
-                
-                // Настройка слушателей Firebase
-                setupFirebaseListeners();
-                
-                return true;
-            } catch (error) {
-                console.error("Ошибка инициализации Firebase:", error);
-                updateSyncStatus('disconnected');
-                return false;
-            }
-        }
-
-        // Настройка слушателей Firebase
-        function setupFirebaseListeners() {
-            if (!databaseRef) return;
-            
-            // Слушаем изменения в балансах
-            onValue(child(databaseRef, 'balances'), (snapshot) => {
-                if (snapshot.exists()) {
-                    const remoteBalances = snapshot.val();
-                    if (JSON.stringify(window.balances) !== JSON.stringify(remoteBalances)) {
-                        window.balances = { ...remoteBalances };
-                        window.saveLocalData();
-                        
-                        if (window.currentUser && window.currentUser !== "BANK") {
-                            window.updateAccount();
-                        }
-                        if (window.currentUser === "BANK") {
-                            window.updateBanker();
-                        }
-                    }
-                }
-            });
-            
-            // Слушаем изменения в паролях
-            onValue(child(databaseRef, 'pins'), (snapshot) => {
-                if (snapshot.exists()) {
-                    const remotePins = snapshot.val();
-                    if (JSON.stringify(window.pins) !== JSON.stringify(remotePins)) {
-                        window.pins = remotePins;
-                        window.saveLocalData();
-                    }
-                }
-            });
-            
-            // Слушаем изменения в транзакциях
-            onValue(child(databaseRef, 'transactions'), (snapshot) => {
-                if (snapshot.exists()) {
-                    const remoteTransactions = snapshot.val();
-                    if (JSON.stringify(window.transactions) !== JSON.stringify(remoteTransactions)) {
-                        window.transactions = remoteTransactions || [];
-                        window.saveLocalData();
-                        
-                        if (window.currentUser && window.currentUser !== "BANK") {
-                            window.updateTransactionHistory();
-                        }
-                        if (window.currentUser === "BANK") {
-                            window.updateAllTransactions();
-                        }
-                    }
-                }
-            });
-            
-            // Слушаем изменения в курсах валют
-            onValue(child(databaseRef, 'exchangeRates'), (snapshot) => {
-                if (snapshot.exists()) {
-                    const remoteRates = snapshot.val();
-                    if (JSON.stringify(window.exchangeRates) !== JSON.stringify(remoteRates)) {
-                        window.exchangeRates = { ...remoteRates };
-                        window.saveLocalData();
-                        
-                        if (window.currentUser && window.currentUser !== "BANK") {
-                            window.updateAccount();
-                            if (window.exchangeChart) window.exchangeChart.update();
-                        }
-                    }
-                }
-            });
-            
-            // Слушаем изменения в заблокированных счетах
-            onValue(child(databaseRef, 'blockedAccounts'), (snapshot) => {
-                if (snapshot.exists()) {
-                    const remoteBlocks = snapshot.val() || [];
-                    if (JSON.stringify(window.blockedAccounts) !== JSON.stringify(remoteBlocks)) {
-                        window.blockedAccounts = remoteBlocks;
-                        window.saveLocalData();
-                        
-                        if (window.currentUser === "BANK") {
-                            window.updateBlockStatus();
-                        }
-                    }
-                }
-            });
-            
-            // Слушаем изменения в комиссиях
-            onValue(child(databaseRef, 'fees'), (snapshot) => {
-                if (snapshot.exists()) {
-                    const remoteFees = snapshot.val();
-                    if (JSON.stringify(window.fees) !== JSON.stringify(remoteFees)) {
-                        window.fees = remoteFees;
-                        window.saveLocalData();
-                        
-                        if (window.currentUser === "BANK") {
-                            window.updateBankerFees();
-                        }
-                    }
-                }
-            });
-            
-            // Слушаем изменения в истории курсов
-            onValue(child(databaseRef, 'rateHistory'), (snapshot) => {
-                if (snapshot.exists()) {
-                    const remoteRateHistory = snapshot.val();
-                    if (JSON.stringify(window.rateHistory) !== JSON.stringify(remoteRateHistory)) {
-                        window.rateHistory = remoteRateHistory;
-                        window.saveLocalData();
-                    }
-                }
-            });
-        }
-
-        // Синхронизация всех данных в Firebase
-        async function syncAllDataToFirebase() {
-            if (!databaseRef) return;
-            
-            try {
-                const dataToSync = {
-                    balances: window.balances,
-                    pins: window.pins,
-                    transactions: window.transactions,
-                    exchangeRates: window.exchangeRates,
-                    blockedAccounts: window.blockedAccounts,
-                    fees: window.fees,
-                    rateHistory: window.rateHistory,
-                    lastUpdated: Date.now()
-                };
-                
-                await set(databaseRef, dataToSync);
-                window.lastSyncTime = Date.now();
-                
-                console.log("Все данные синхронизированы с Firebase");
-                updateSyncStatus('connected');
-                
-            } catch (error) {
-                console.error("Ошибка синхронизации с Firebase:", error);
-                updateSyncStatus('disconnected');
-            }
-        }
-
-        // Синхронизация отдельных данных
-        async function syncDataToFirebase(dataType, data) {
-            if (!databaseRef) return;
-            
-            try {
-                await set(child(databaseRef, dataType), data);
-                window.lastSyncTime = Date.now();
-                
-                console.log(`${dataType} синхронизированы с Firebase`);
-                updateSyncStatus('connected');
-                
-            } catch (error) {
-                console.error(`Ошибка синхронизации ${dataType}:`, error);
-                updateSyncStatus('disconnected');
-            }
-        }
-
-        // Обновление статуса синхронизации
-        function updateSyncStatus(status) {
-            const syncStatus = document.getElementById('syncStatus');
-            const syncText = document.getElementById('syncText');
-            
-            syncStatus.classList.remove('hidden');
-            
-            switch(status) {
-                case 'connected':
-                    syncStatus.className = 'sync-status sync-connected';
-                    syncText.textContent = 'Онлайн';
-                    break;
-                case 'disconnected':
-                    syncStatus.className = 'sync-status sync-disconnected';
-                    syncText.textContent = 'Ошибка';
-                    break;
-                case 'offline':
-                    syncStatus.className = 'sync-status sync-offline';
-                    syncText.textContent = 'Офлайн';
-                    break;
-            }
-        }
-
-        // Экспорт функций в глобальную область видимости
-        window.initializeFirebase = initializeFirebase;
-        window.syncAllDataToFirebase = syncAllDataToFirebase;
-        window.syncDataToFirebase = syncDataToFirebase;
-        window.updateSyncStatus = updateSyncStatus;
-        window.firebaseDatabase = firebaseDatabase;
-        window.databaseRef = databaseRef;
+        // Инициализируем Firebase
+        window.firebaseApp = initializeApp(firebaseConfig);
+        window.firebaseDatabase = getDatabase(window.firebaseApp);
+        window.databaseRef = ref(window.firebaseDatabase, 'worldBank');
         
-        // Инициализация Firebase после загрузки страницы
-        document.addEventListener('DOMContentLoaded', async () => {
-            await initializeFirebase();
-        });
-    </script>
+        console.log("✅ Firebase успешно инициализирован!");
+        return true;
+        
+    } catch (error) {
+        console.error("❌ Ошибка инициализации Firebase:", error);
+        return false;
+    }
+}
+
+// Экспортируем функции в глобальную область
+window.initializeFirebase = initializeFirebase;
+window.syncEnabled = true;
+</script>
 
     <script>
         // ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
@@ -4511,4 +4313,5 @@
 </body>
 
 </html>
+
 
