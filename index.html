@@ -2181,10 +2181,117 @@ async function initializeFirebase() {
     }
 }
 
-// Экспортируем функции в глобальную область
+// Функция обновления статуса синхронизации
+function updateSyncStatus(status) {
+    const syncStatus = document.getElementById('syncStatus');
+    const syncText = document.getElementById('syncText');
+    
+    if (!syncStatus || !syncText) return;
+    
+    syncStatus.classList.remove('hidden');
+    
+    switch(status) {
+        case 'connected':
+            syncStatus.className = 'sync-status sync-connected';
+            syncText.textContent = 'Онлайн';
+            break;
+        case 'disconnected':
+            syncStatus.className = 'sync-status sync-disconnected';
+            syncText.textContent = 'Ошибка';
+            break;
+        case 'offline':
+            syncStatus.className = 'sync-status sync-offline';
+            syncText.textContent = 'Офлайн';
+            break;
+    }
+}
+
+// Экспортируем все функции
 window.initializeFirebase = initializeFirebase;
+window.updateSyncStatus = updateSyncStatus;
 window.syncEnabled = true;
+
+// Инициализация Firebase после загрузки страницы
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        const firebaseInitialized = await window.initializeFirebase();
+        
+        if (firebaseInitialized) {
+            console.log("✅ Firebase готов к работе!");
+            window.updateSyncStatus('connected');
+        } else {
+            console.log("⚠️ Firebase не инициализирован, работаем офлайн");
+            window.updateSyncStatus('offline');
+            window.syncEnabled = false;
+        }
+    } catch (error) {
+        console.error("❌ Ошибка при инициализации:", error);
+        window.updateSyncStatus('offline');
+        window.syncEnabled = false;
+    }
+});
 </script>
+
+// Функция обновления статуса синхронизации
+function updateSyncStatus(status) {
+    const syncStatus = document.getElementById('syncStatus');
+    const syncText = document.getElementById('syncText');
+    
+    if (!syncStatus || !syncText) return;
+    
+    syncStatus.classList.remove('hidden');
+    
+    switch(status) {
+        case 'connected':
+            syncStatus.className = 'sync-status sync-connected';
+            syncText.textContent = 'Онлайн';
+            break;
+        case 'disconnected':
+            syncStatus.className = 'sync-status sync-disconnected';
+            syncText.textContent = 'Ошибка';
+            break;
+        case 'offline':
+            syncStatus.className = 'sync-status sync-offline';
+            syncText.textContent = 'Офлайн';
+            break;
+    }
+}
+
+// Экспортируем все функции
+window.initializeFirebase = initializeFirebase;
+window.updateSyncStatus = updateSyncStatus;
+window.syncEnabled = true;
+
+        // Инициализация Firebase после загрузки страницы
+document.addEventListener('DOMContentLoaded', async () => {
+    // Проверяем, есть ли функция updateSyncStatus
+    if (!window.updateSyncStatus) {
+        // Создаем простую версию если нет
+        window.updateSyncStatus = function(status) {
+            console.log("Статус синхронизации:", status);
+        };
+    }
+    
+    try {
+        const firebaseInitialized = await window.initializeFirebase();
+        
+        if (firebaseInitialized) {
+            console.log("✅ Firebase готов к работе!");
+            window.updateSyncStatus('connected');
+            
+            // Включаем синхронизацию
+            window.syncEnabled = true;
+        } else {
+            console.log("⚠️ Firebase не инициализирован, работаем офлайн");
+            window.updateSyncStatus('offline');
+            window.syncEnabled = false;
+        }
+    } catch (error) {
+        console.error("❌ Ошибка при инициализации:", error);
+        window.updateSyncStatus('offline');
+        window.syncEnabled = false;
+    }
+});
 
     <script>
         // ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
@@ -2208,6 +2315,33 @@ window.syncEnabled = true;
         window.selectedUploadedIcon = null;
         window.pwaIconData = localStorage.getItem("bankPwaIcon") || "";
         window.syncEnabled = true;
+        // Функция обновления статуса синхронизации
+function updateSyncStatus(status) {
+    const syncStatus = document.getElementById('syncStatus');
+    const syncText = document.getElementById('syncText');
+    
+    if (!syncStatus || !syncText) return;
+    
+    syncStatus.classList.remove('hidden');
+    
+    switch(status) {
+        case 'connected':
+            syncStatus.className = 'sync-status sync-connected';
+            syncText.textContent = 'Онлайн';
+            break;
+        case 'disconnected':
+            syncStatus.className = 'sync-status sync-disconnected';
+            syncText.textContent = 'Ошибка';
+            break;
+        case 'offline':
+            syncStatus.className = 'sync-status sync-offline';
+            syncText.textContent = 'Офлайн';
+            break;
+    }
+}
+
+// Экспортируем все функции
+window.updateSyncStatus = updateSyncStatus;
         window.lastSyncTime = null;
         window.isOnline = navigator.onLine;
 
@@ -4313,5 +4447,6 @@ window.syncEnabled = true;
 </body>
 
 </html>
+
 
 
