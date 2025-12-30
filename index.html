@@ -2405,13 +2405,15 @@ window.updateSyncStatus = updateSyncStatus;
                 }
             });
             
-            // Запускаем синхронизацию (через небольшую задержку, чтобы Firebase успел инициализироваться)
-            setTimeout(async () => {
-                if (syncEnabled && window.databaseRef) {
-                    await startSync();
-                }
-            }, 1000);
-        };
+            // Запускаем синхронизацию с небольшой задержкой
+setTimeout(async () => {
+    if (window.syncEnabled && window.databaseRef && window.startSync) {
+        console.log("🔄 Запускаю синхронизацию...");
+        await window.startSync();
+    } else {
+        console.log("⚠️ Синхронизация отключена или Firebase не готов");
+    }
+}, 2000);
 
         // ==================== СИНХРОНИЗАЦИЯ ДАННЫХ ====================
 async function startSync() {
@@ -2468,6 +2470,95 @@ async function startSync() {
             if (isOnline) {
                 window.updateSyncStatus('connected');
                 if (syncEnabled && window.databaseRef) {
+                    // ==================== СИНХРОНИЗАЦИЯ ДАННЫХ В FIREBASE ====================
+async function syncAllDataToFirebase() {
+    if (!window.databaseRef || !window.firebaseSet) {
+        console.log("❌ Нет доступа к Firebase, пропускаем синхронизацию");
+        return;
+    }
+    
+    try {
+        const dataToSync = {
+            balances: window.balances,
+            pins: window.pins,
+            transactions: window.transactions,
+            exchangeRates: window.exchangeRates,
+            blockedAccounts: window.blockedAccounts,
+            fees: window.fees,
+            rateHistory: window.rateHistory,
+            lastUpdated: Date.now()
+        };
+        
+        await window.firebaseSet(window.databaseRef, dataToSync);
+        window.lastSyncTime = Date.now();
+        
+        console.log("✅ Все данные синхронизированы с Firebase");
+        window.updateSyncStatus('connected');
+        
+    } catch (error) {
+        console.error("❌ Ошибка синхронизации с Firebase:", error);
+        window.updateSyncStatus('disconnected');
+    }
+}
+
+// Экспортируем для глобального использования
+window.syncAllDataToFirebase = syncAllDataToFirebase;
+
+// ==================== ЗАГРУЗКА ДАННЫХ ИЗ FIREBASE ====================
+async function startSync() {
+    if (!window.syncEnabled || !window.databaseRef || !window.firebaseGet) {
+        console.log("⚠️ Синхронизация отключена или Firebase не готов");
+        return;
+    }
+    
+    try {
+        console.log("🔄 Загружаю данные с Firebase...");
+        
+        // Загружаем данные с сервера
+        const snapshot = await window.firebaseGet(window.databaseRef);
+        
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            
+            // Обновляем локальные данные из сервера
+            if (data.balances) window.balances = { ...data.balances };
+            if (data.pins) window.pins = data.pins;
+            if (data.transactions) window.transactions = data.transactions;
+            if (data.exchangeRates) window.exchangeRates = { ...data.exchangeRates };
+            if (data.blockedAccounts) window.blockedAccounts = data.blockedAccounts;
+            if (data.fees) window.fees = data.fees;
+            if (data.rateHistory) window.rateHistory = data.rateHistory;
+            
+            window.saveLocalData();
+            
+            console.log("✅ Данные загружены с сервера");
+            
+            // Обновляем интерфейс
+            if (window.currentUser && window.currentUser !== "BANK") {
+                window.updateAccount();
+                window.updateTransactionHistory();
+            }
+            if (window.currentUser === "BANK") {
+                window.updateBanker();
+                window.updateAllTransactions();
+                window.updateBankerFees();
+                window.updateBlockStatus();
+            }
+        } else {
+            console.log("ℹ️ На сервере нет данных, загружаю локальные");
+            await window.syncAllDataToFirebase();
+        }
+        
+        window.updateSyncStatus('connected');
+        
+    } catch (error) {
+        console.error("❌ Ошибка синхронизации:", error);
+        window.updateSyncStatus('disconnected');
+    }
+}
+
+// Экспортируем
+window.startSync = startSync;
                     startSync();
                     // Синхронизация всех данных в Firebase
 async function syncAllDataToFirebase() {
@@ -4483,6 +4574,7 @@ window.syncAllDataToFirebase = syncAllDataToFirebase;
 </body>
 
 </html>
+
 
 
 
